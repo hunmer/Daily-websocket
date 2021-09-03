@@ -13,6 +13,7 @@
     "crypto": "^1.0.1",
     "express": "^4.17.1",
     "http": "0.0.1-security",
+    "images": "^3.2.3",
     "ws": "^7.4.3"
   },
   "engines": {

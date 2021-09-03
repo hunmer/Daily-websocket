@@ -2,12 +2,26 @@ var express = require('express');
 var http = require('http');
 var WebSocket = require('ws');
 var crypto = require('crypto');
+var fs = require('fs');
+var images = require("images");
 
 var app = express();
 app.use(express.static(__dirname));
 
 var server = http.createServer(app);
 var wss = new WebSocket.Server({server});
+var g_users = {};
+fs.readFile('users.json', 'utf-8', (err, data) => {
+    if (!err && data != undefined) {
+        g_users = JSON.parse(data);
+    }
+});
+var g_ranking = {};
+fs.readFile('ranking.json', 'utf-8', (err, data) => {
+    if (!err && data != undefined) {
+        g_ranking = JSON.parse(data);
+    }
+});
 
 var g_datas = {};
 wss.on('connection', (ws) => {
@@ -15,6 +29,49 @@ wss.on('connection', (ws) => {
         var data = JSON.parse(msg);
         // console.log(data);
         switch(data.type){
+            case 'ranking':
+               ws.send(JSON.stringify({ type: 'ranking', data: g_ranking}));
+                break;
+            case 'countMsg':
+                var date = new Date();
+                date = date.getFullYear()+'/'+(parseInt(date.getMonth()) + 1) + '/' + date.getDate();
+                if(!g_ranking[date]){
+                    g_ranking[date] = {};
+                }
+                g_ranking[date][data.user] = {
+                    msgs: data.msgs,
+                    chars: data.chars,
+                }
+                fs.writeFile('ranking.json', JSON.stringify(g_ranking), (err) => {});
+                break;
+            case 'setProfile':
+                var d = data.data;
+                if(d.icon.indexOf('data:image') != 0){
+                    d.icon = '';
+                }
+                g_users[d.name] = {
+                    icon: d.icon,
+                };
+                fs.writeFile('users.json', JSON.stringify(g_users), (err) => {
+                    if (err == null) {
+                        if (!fs.existsSync("./icons/")) {
+                            fs.mkdirSync("./icons/");
+                        }
+                        if(d.icon != ''){
+                            var bin = new Buffer.from(d.icon.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+                            images(bin)
+                            .resize(200)
+                            .save('./icons/' + d.name + '.jpg', {
+                                quality: 50
+                            });
+                        }else{
+                             fs.writeFileSync('./icons/' + d.name + '.jpg', fs.readFileSync('user.jpg'));
+                        }
+                            
+                        ws.send(JSON.stringify({ type: 'setProfile', data: d }));
+                    }
+                });
+                break;
             case 'uploadData':
                 var md5 = crypto.createHash('md5').update(JSON.stringify(data.data)).digest("hex");
                 if(md5 != data.md5){
@@ -53,7 +110,7 @@ wss.on('connection', (ws) => {
 
 function getRandNum(){
     while(1){
-        var code = randNum(1, 100);
+        var code = randNum(10000, 99999);
         if(g_datas[code] == undefined){
             return code;
         }
