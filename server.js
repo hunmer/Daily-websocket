@@ -65,9 +65,9 @@ wss.on('connection', (ws) => {
                                 quality: 50
                             });
                         }else{
-                             fs.writeFileSync('./icons/' + d.name + '.jpg', fs.readFileSync('user.jpg'));
+                             fs.writeFileSync(, fs.readFileSync('user.jpg'));
                         }
-                            
+                        d.icon = './icons/' + d.name + '.jpg';
                         ws.send(JSON.stringify({ type: 'setProfile', data: d }));
                     }
                 });
